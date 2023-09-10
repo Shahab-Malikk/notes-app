@@ -1,0 +1,14 @@
+{
+  "resourceName": "notesGal",
+  "policyUUID": "4a3c04fe",
+  "bucketName": "notesapp2db1e2203d214c52aa5217029f7b57ee",
+  "storageAccess": "auth",
+  "guestAccess": [],
+  "authAccess": [
+    "CREATE_AND_UPDATE",
+    "READ",
+    "DELETE"
+  ],
+  "triggerFunction": "NONE",
+  "groupAccess": {}
+}

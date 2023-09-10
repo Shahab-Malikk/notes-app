@@ -14,6 +14,12 @@
     "categories": {
       "auth": {
         "notesapp009e8204": {}
+      },
+      "api": {
+        "notesapp": {}
+      },
+      "storage": {
+        "notesGal": {}
       }
     }
   }
