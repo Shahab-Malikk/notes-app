@@ -6,7 +6,7 @@ import { Amplify } from "aws-amplify";
 import config from "./aws-exports";
 Amplify.configure(config);
 
-import { API, Storage } from "aws-amplify";
+import { API, Storage, DataStore } from "aws-amplify";
 import {
   Button,
   Flex,
@@ -22,13 +22,35 @@ import {
   createNote as createNoteMutation,
   deleteNote as deleteNoteMutation,
 } from "./graphql/mutations";
+import { Note } from "./models";
 
 const App = ({ signOut }) => {
   const [notes, setNotes] = useState([]);
 
   useEffect(() => {
-    fetchNotes();
+    getNotes();
   }, []);
+
+  async function getNotes() {
+    const notes = await DataStore.query(Note);
+    console.log(notes);
+  }
+
+  async function createNotes(event) {
+    event.preventDefault();
+    const form = new FormData(event.target);
+    const image = form.get("image");
+    const data = {
+      name: form.get("name"),
+      description: form.get("description"),
+      image: image.name,
+    };
+    if (!!data.image) await Storage.put(data.name, image);
+    await DataStore.save(new Note(data));
+
+    getNotes();
+    event.target.reset();
+  }
 
   async function fetchNotes() {
     const apiData = await API.graphql({ query: listNotes });
@@ -74,7 +96,7 @@ const App = ({ signOut }) => {
   return (
     <View className="App">
       <Heading level={1}>My Notes App</Heading>
-      <View as="form" margin="3rem 0" onSubmit={createNote}>
+      <View as="form" margin="3rem 0" onSubmit={createNotes}>
         <Flex direction="row" justifyContent="center">
           <TextField
             name="name"
