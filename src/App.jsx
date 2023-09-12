@@ -29,11 +29,30 @@ const App = ({ signOut }) => {
 
   useEffect(() => {
     getNotes();
+    DataStore.observe(Note).subscribe(() => getNotes());
   }, []);
 
   async function getNotes() {
-    const notes = await DataStore.query(Note);
-    console.log(notes);
+    try {
+      const notes = await DataStore.query(Note);
+      console.log(notes);
+      // Use Promise.all to fetch image URLs for all notes with images
+      const updatedNotes = await Promise.all(
+        notes.map(async (note) => {
+          if (note.image) {
+            const url = await Storage.get(note.name);
+            // Create a new object with the updated 'image' property
+            const updatedNote = { ...note, image: url };
+            return updatedNote;
+          }
+          return note;
+        })
+      );
+
+      setNotes(updatedNotes);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+    }
   }
 
   async function createNotes(event) {
@@ -88,10 +107,12 @@ const App = ({ signOut }) => {
     const newNotes = notes.filter((note) => note.id !== id);
     setNotes(newNotes);
     await Storage.remove(name);
-    await API.graphql({
-      query: deleteNoteMutation,
-      variables: { input: { id } },
-    });
+    const toDelete = await DataStore.query(Note, id);
+    DataStore.delete(toDelete);
+    // await API.graphql({
+    //   query: deleteNoteMutation,
+    //   variables: { input: { id } },
+    // });
   }
   return (
     <View className="App">
