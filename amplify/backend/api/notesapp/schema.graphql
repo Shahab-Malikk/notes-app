@@ -3,9 +3,18 @@
 input AMPLIFY {
   globalAuthRule: AuthRule = { allow: public }
 } # FOR TESTING ONLY!
+type Person @model @auth(rules: [{ allow: public }]) {
+  id: String! @primaryKey
+  name: String
+  email: AWSEmail
+  phone: String
+  notes: [Note] @hasMany(indexName: "byPerson", fields: ["id"])
+}
+
 type Note @model @auth(rules: [{ allow: public }]) {
   id: ID!
   name: String!
   description: String
   image: String
+  pId: String @index(name: "byPerson")
 }

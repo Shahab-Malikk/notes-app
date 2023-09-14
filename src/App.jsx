@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./App.css";
 import "@aws-amplify/ui-react/styles.css";
 
-import { Amplify } from "aws-amplify";
+import { Amplify, Auth } from "aws-amplify";
 import config from "./aws-exports";
 Amplify.configure(config);
 
@@ -17,24 +17,29 @@ import {
   View,
   withAuthenticator,
 } from "@aws-amplify/ui-react";
-import { listNotes } from "./graphql/queries";
+import { getNote, getPerson, listNotes } from "./graphql/queries";
 import {
   createNote as createNoteMutation,
+  createPerson,
   deleteNote as deleteNoteMutation,
 } from "./graphql/mutations";
-import { Note } from "./models";
+import { Note, Person } from "./models";
 
 const App = ({ signOut }) => {
   const [notes, setNotes] = useState([]);
+  const [person, setPerson] = useState([]);
 
   useEffect(() => {
-    getNotes();
+    getPerson();
+    // getNotes();
     DataStore.observe(Note).subscribe(() => getNotes());
+
+    console.log();
   }, []);
 
-  async function getNotes() {
+  async function getNotes(notesFromAPI) {
     try {
-      const notes = await DataStore.query(Note);
+      const notes = notesFromAPI;
       console.log(notes);
       // Use Promise.all to fetch image URLs for all notes with images
       const updatedNotes = await Promise.all(
@@ -56,19 +61,52 @@ const App = ({ signOut }) => {
   }
 
   async function createNotes(event) {
-    event.preventDefault();
-    const form = new FormData(event.target);
-    const image = form.get("image");
-    const data = {
-      name: form.get("name"),
-      description: form.get("description"),
-      image: image.name,
-    };
-    if (!!data.image) await Storage.put(data.name, image);
-    await DataStore.save(new Note(data));
+    try {
+      event.preventDefault();
+      const currentUser = await Auth.currentUserInfo();
+      console.log(currentUser);
+      const userId = currentUser.id;
+      console.log(userId);
+      const form = new FormData(event.target);
+      const image = form.get("image");
+      const data = {
+        name: form.get("name"),
+        description: form.get("description"),
+        image: image.name,
+        pId: String(userId),
+      };
+      if (!!data.image) await Storage.put(data.name, image);
+      await DataStore.save(new Note(data));
 
-    getNotes();
-    event.target.reset();
+      // getNotes();
+      getPerson();
+      event.target.reset();
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function getPerson() {
+    try {
+      const currentUser = await Auth.currentUserInfo();
+      console.log(currentUser);
+      const userId = currentUser.id;
+      console.log(userId);
+      const person = await DataStore.query(Person, userId);
+      setPerson(person);
+      console.log(person);
+      console.log(person.name);
+      console.log(person.email);
+      console.log(person.phone);
+      console.log(person.id);
+      console.log(await person.notes.values);
+      const notes = await person.notes.values;
+      console.log(notes);
+      getNotes(notes);
+      console.log(notes);
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   async function fetchNotes() {
@@ -114,9 +152,29 @@ const App = ({ signOut }) => {
     //   variables: { input: { id } },
     // });
   }
+
+  async function createPerson() {
+    const currentUser = await Auth.currentUserInfo();
+    console.log(currentUser);
+    const userId = currentUser.id;
+    const person = {
+      id: userId,
+      name: "John Doe",
+      email: currentUser.attributes.email,
+      phone: "7847599859",
+    };
+    await DataStore.save(new Person(person));
+    getPerson();
+  }
+
   return (
     <View className="App">
       <Heading level={1}>My Notes App</Heading>
+      <Button variation="primary" onClick={createPerson}>
+        Create Person
+      </Button>
+      <Heading level={2}>{person.name}</Heading>
+
       <View as="form" margin="3rem 0" onSubmit={createNotes}>
         <Flex direction="row" justifyContent="center">
           <TextField
