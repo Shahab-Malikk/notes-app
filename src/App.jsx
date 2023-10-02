@@ -17,22 +17,30 @@ import {
   View,
   withAuthenticator,
 } from "@aws-amplify/ui-react";
-import { getNote, getPerson, listNotes } from "./graphql/queries";
-import {
-  createNote as createNoteMutation,
-  createPerson,
-  deleteNote as deleteNoteMutation,
-} from "./graphql/mutations";
-import { Note, Person } from "./models";
+
+import { Note, Person, Users } from "./models";
+import HotelC from "./components/Hotel";
+import NgoC from "./components/Ngo";
 
 const App = ({ signOut }) => {
   const [notes, setNotes] = useState([]);
   const [person, setPerson] = useState([]);
+  const [user, setUser] = useState([]);
+  const [count, setCount] = useState(0);
+
+  function incrementTwice() {
+    setCount((prevCount) => prevCount + 1);
+    setCount((prevCount) => prevCount + 1);
+    // setCount(count + 1);
+    // setCount(count + 1);
+    console.log(count); // Outputs 2
+  }
 
   useEffect(() => {
     getPerson();
+    getUser();
+
     // getNotes();
-    DataStore.observe(Note).subscribe(() => getNotes());
 
     console.log();
   }, []);
@@ -93,6 +101,7 @@ const App = ({ signOut }) => {
       const userId = currentUser.id;
       console.log(userId);
       const person = await DataStore.query(Person, userId);
+
       setPerson(person);
       console.log(person);
       console.log(person.name);
@@ -109,63 +118,48 @@ const App = ({ signOut }) => {
     }
   }
 
-  async function fetchNotes() {
-    const apiData = await API.graphql({ query: listNotes });
-    const notesFromAPI = apiData.data.listNotes.items;
-    await Promise.all(
-      notesFromAPI.map(async (note) => {
-        if (note.image) {
-          const url = await Storage.get(note.name);
-          note.image = url;
-        }
-        return note;
-      })
-    );
-    setNotes(notesFromAPI);
-  }
-  async function createNote(event) {
-    event.preventDefault();
-    const form = new FormData(event.target);
-    const image = form.get("image");
-    const data = {
-      name: form.get("name"),
-      description: form.get("description"),
-      image: image.name,
-    };
-    if (!!data.image) await Storage.put(data.name, image);
-    await API.graphql({
-      query: createNoteMutation,
-      variables: { input: data },
-    });
-    fetchNotes();
-    event.target.reset();
-  }
-
   async function deleteNote({ id, name }) {
     const newNotes = notes.filter((note) => note.id !== id);
     setNotes(newNotes);
     await Storage.remove(name);
     const toDelete = await DataStore.query(Note, id);
     DataStore.delete(toDelete);
-    // await API.graphql({
-    //   query: deleteNoteMutation,
-    //   variables: { input: { id } },
-    // });
   }
 
   async function createPerson() {
     const currentUser = await Auth.currentUserInfo();
     console.log(currentUser);
     const userId = currentUser.id;
-    const person = {
+    const user = {
       id: userId,
-      name: "John Doe",
+      name: "Shahab Malik",
       email: currentUser.attributes.email,
       phone: "7847599859",
     };
-    await DataStore.save(new Person(person));
+    await DataStore.save(new Person(user));
     getPerson();
   }
+  const getUser = async () => {
+    const currentUser = await Auth.currentUserInfo();
+    console.log(currentUser);
+    const userId = currentUser.id;
+    const user = await DataStore.query(Users, userId);
+    console.log("G2G USER ");
+    console.log(user);
+    setUser(user);
+  };
+  const createG2GUser = async () => {
+    const currentUser = await Auth.currentUserInfo();
+    console.log(currentUser);
+    const userId = currentUser.id;
+    const user = {
+      id: userId,
+      userRole: "ngo",
+      email: currentUser.attributes.email,
+    };
+    await DataStore.save(new Users(user));
+    getUser();
+  };
 
   return (
     <View className="App">
@@ -173,6 +167,19 @@ const App = ({ signOut }) => {
       <Button variation="primary" onClick={createPerson}>
         Create Person
       </Button>
+      <Button variation="primary" onClick={createG2GUser}>
+        Create G2G User
+      </Button>
+
+      <Button
+        variation="secondary"
+        onClick={() => {
+          incrementTwice();
+        }}
+      >
+        Incremet
+      </Button>
+      <h2>Count: {count}</h2>
       <Heading level={2}>{person.name}</Heading>
 
       <View as="form" margin="3rem 0" onSubmit={createNotes}>
@@ -230,6 +237,8 @@ const App = ({ signOut }) => {
           </Flex>
         ))}
       </View>
+      {user.userRole === "hotel" && <HotelC />}
+      {user.userRole === "ngo" && <NgoC />}
       <Button onClick={signOut}>Sign Out</Button>
     </View>
   );
